@@ -1,7 +1,7 @@
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix,precision_score
 import numpy as np
 import matplotlib.pyplot as plt
 from imblearn.over_sampling import SMOTE
@@ -51,6 +51,7 @@ class equipament_analyse:
 
         print(classification_report(y_test, y_pred))
         print("Acurácia: ", accuracy_score(y_test, y_pred))
+        print("Precision: ", precision_score(y_test, y_pred))
 
         cm = confusion_matrix(y_test, y_pred)
         cm_normalized = 100 * (cm.astype('float') / cm.sum(axis=1)[:, np.newaxis])
