@@ -9,6 +9,7 @@ from sklearn.tree import DecisionTreeClassifier, plot_tree
 import graphviz
 from sklearn import tree
 import seaborn as sns
+from tqdm import tqdm
 
 class equipament_analyse:
     def __init__(self, fold='./data/', file='O_G_Equipment_Data.xlsx'):
@@ -16,46 +17,42 @@ class equipament_analyse:
         self.data = self.data[['Cycle', 'Preset_1', 'Preset_2', 'Temperature',
                                'Pressure', 'VibrationX', 'VibrationY', 'VibrationZ', 'Frequency', 'Fail']]
 
-    def RandomForest_analyse(self, test_size=0.2):
-        X = self.data[['Preset_1', 'Preset_2', 'Temperature', 'Pressure',
-                       'VibrationX', 'VibrationY', 'VibrationZ', 'Frequency']].to_numpy()
-        y = self.data['Fail'].to_numpy(dtype=int)
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=test_size)
-        smote = SMOTE(sampling_strategy={0:  np.array(np.unique(
-            y_train, return_counts=True)).T[0, 1], 1:  np.array(np.unique(y_train, return_counts=True)).T[0, 1]})
-        X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
-
-        rf = RandomForestClassifier()
-        rf.fit(X_train_res, y_train_res)
-        y_pred = rf.predict(X_test)
-
-        print(classification_report(y_test, y_pred))
-
-    def RandomForest_analyse(self, test_size=0.2):
-        X = self.data[['Temperature', 'Pressure', 'VibrationX',
+    def RandomForest_analyse(self, test_size=0.2,n_trains=100):
+        X = self.data[['Preset_1', 'Preset_2', 'Temperature', 'Pressure', 'VibrationX',
                        'VibrationY', 'VibrationZ', 'Frequency']].to_numpy()
+        # X = self.data[['Temperature', 'Pressure',
+        #                'VibrationY']].to_numpy()
         y = self.data['Fail'].to_numpy(dtype=int)
 
         smote = SMOTE()
-        X_resampled, y_resampled = smote.fit_resample(X, y)
+        # X_resampled, y_resampled = smote.fit_resample(X, y)
         
-        X_train, X_test, y_train, y_test = train_test_split(
-            X_resampled, y_resampled, test_size=test_size)
+        # X_train, X_test, y_train, y_test = train_test_split(
+        #     X_resampled, y_resampled, test_size=test_size)
+        
+        vet_ac = []
+        vet_pred = []
+        vet_cm = np.zeros([2,2])
+        for nt in tqdm(range(0,n_trains)):
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-        X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
+            X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
 
-        rf = RandomForestClassifier()
-        rf.fit(X_train_res, y_train_res)
-        y_pred = rf.predict(X_test)
+            rf = RandomForestClassifier()
+            rf.fit(X_train_res, y_train_res)
+            y_pred = rf.predict(X_test)
+            
+            vet_ac.append(accuracy_score(y_test, y_pred))
+            vet_pred.append(precision_score(y_test, y_pred))
 
-        print(classification_report(y_test, y_pred))
-        print("Acurácia: ", accuracy_score(y_test, y_pred))
-        print("Precision: ", precision_score(y_test, y_pred))
+            cm = confusion_matrix(y_test, y_pred)
+            cm_normalized = 100 * (cm.astype('float') / cm.sum(axis=1)[:, np.newaxis])
+            vet_cm = vet_cm + cm_normalized
 
-        cm = confusion_matrix(y_test, y_pred)
-        cm_normalized = 100 * (cm.astype('float') / cm.sum(axis=1)[:, np.newaxis])
-
+        vet_cm = vet_cm / n_trains
+        cm_normalized = vet_cm
+        print("Acurácia: ", np.mean(vet_pred))
+        print("Precision: ", np.mean(vet_ac))
         plt.figure(figsize=(6, 4))
         sns.heatmap(cm_normalized, annot=True, fmt= ".2f" , cmap="plasma", cbar=False, annot_kws={"fontsize": 12,"fontweight":'bold'})
         plt.xlabel('Predicted',fontsize='14',fontweight='bold')
@@ -91,7 +88,7 @@ class equipament_analyse:
         plt.xlabel('Preset 1 and Preset 2',fontsize=14,fontweight='bold')
         plt.xticks(rotation=45)
         plt.title('Preset configurations combinations of Fails',fontsize=14,fontweight='bold')
-
+        plt.tight_layout()
         plt.show()
 
         for var in ['Temperature','Pressure','VibrationX','VibrationY','VibrationZ','Frequency']:
@@ -146,8 +143,8 @@ class equipament_analyse:
 
 if __name__ == '__main__':
     ea = equipament_analyse()
-    #ea.tree_decision()
-    #ea.analyse_category_preset()
+    ea.tree_decision()
+    ea.analyse_category_preset()
     ea.RandomForest_analyse()
     
     print('Finish')
